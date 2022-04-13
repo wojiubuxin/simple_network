@@ -42,7 +42,12 @@ int socket_er::createNonblocksock()
 		events_ |= kReadEvent;
 
 		std::string ip = "127.0.0.1";
-		uint16_t port = 666;
+
+		//结构体用666监听
+		//port = 666;
+
+		//http用6666监听
+		port = 6666;
 
 		memset(&addr_, 0, sizeof addr_);
 		addr_.sin_family = AF_INET;
@@ -533,10 +538,22 @@ void socket_er::Acceptor_handleRead()
 		conn->setKeepAlive();
 
 		//设置读写关回调
-		conn->setReadCallback(std::bind(&socket_er::read_er, conn.get()));
-		conn->setWriteCallback(std::bind(&socket_er::write_er, conn.get()));
+
+		//以http格式解码
+		if (port == 6666)
+		{
+			conn->setReadCallback(std::bind(&socket_er::read_er_http, conn.get()));
+			conn->setMessageCallback(std::bind(&socket_er::message_er_http, conn.get()));
+		}
+		else
+		{
+			conn->setReadCallback(std::bind(&socket_er::read_er, conn.get()));
+			conn->setWriteCallback(std::bind(&socket_er::write_er, conn.get()));
+			conn->setMessageCallback(std::bind(&socket_er::message_er, conn.get()));
+		}
+
 		conn->setCloseCallback(std::bind(&socket_er::close_er, conn.get()));
-		conn->setMessageCallback(std::bind(&socket_er::message_er, conn.get()));
+
 		if (m_loop->m_channels.find(connfd) == m_loop->m_channels.end())
 		{
 			logger("socket_er", "Acceptor_handleRead-1-", connfd);
@@ -584,4 +601,220 @@ void socket_er::setNoblock()
 	flags |= FD_CLOEXEC;
 	ret = ::fcntl(sockfd, F_SETFD, flags);
 	(void)ret;
+}
+
+
+void socket_er::split(const char* temp, const char* delim, std::vector<std::string>& v)
+{
+	std::string buf(temp);
+	int delimiterlength = strlen(delim);
+	size_t pos = 0;
+	std::string substr;
+	while (true)
+	{
+		pos = buf.find(delim);
+		if (pos != std::string::npos) //一个结束标记值
+		{
+			substr = buf.substr(0, pos);
+			if (!substr.empty())
+			{
+				v.push_back(substr);
+			}
+
+			buf = buf.substr(pos + delimiterlength);
+		}
+		else
+		{
+			if (!buf.empty())
+				v.push_back(buf);
+			break;
+		}
+	}
+
+}
+
+//先判断下结束尾巴有吗
+bool socket_er::ishavefenge(const char* temp, const char* delim)
+{
+	std::string buf(temp);
+	size_t pos = 0;
+	pos = buf.find(delim);
+	if (pos != std::string::npos) //一个结束标记值
+	{
+		//存在
+		return true;
+	}
+
+
+	return false;
+}
+
+
+void socket_er::read_er_http()
+{
+	logger("socket_er", "read_er_http", sockfd);
+	char temp[MAX_PACKAGE_SIZE];
+	memset(temp, 0, sizeof(temp));
+	
+	//MSG_PEEK只读不删
+	int  len = ::recv(sockfd, temp, sizeof(temp), MSG_PEEK);
+	if (len > 0)
+	{
+		
+		//不够一个包头大小
+		//因为一个http包头的数据至少\r\n\r\n，所以大于4个字符
+		//小于等于4个字符，说明数据未收完，退出，等待网络底层接着收取
+		if (len <= 4)
+		{
+			//继续等待下次读
+			logger("error", "read_er_http不够一个包头大小", sockfd, len);
+			return;
+		}
+
+		//我们收到的GET请求数据包一般格式如下：
+		//GET /simple/network?fuckyou=123&qfs=123 HTTP/1.1\r\n
+		//User - Agent: curl / 7.29.0\r\n
+		//Host : 127.0.0.1 : 666\r\n
+		//Accept : */*\r\n
+		//\r\n
+
+		//检查是否以\r\n\r\n结束，如果不是说明包头不完整，退出
+		if (ishavefenge(temp,"\r\n\r\n") == false)
+		{
+			//继续等待下次读
+			logger("error", "read_er_http没有以\r\n\r\n结束", sockfd);
+			return;
+		}
+
+		std::string tempff(temp);
+
+		int shanchu_len = tempff.find("\r\n\r\n") + 4 ;
+
+		//inbuf才是我们需要的
+		std::string inbuf = tempff.substr(0, shanchu_len);
+
+		
+		//以\r\n分割每一行
+		std::vector<std::string> lines;
+		split(inbuf.c_str(),"\r\n" , lines);
+		if (lines.size() < 1 || lines[0].empty())
+		{
+			closeCallback_();
+			return;
+		}
+
+		//当前函数为了简单处理只支持get方法操作
+		//至于其它post或是Keep-Alive之类的处理等等，读者喜欢造轮子可自行优化
+		//chunk中至少有三个字符串：GET+url+HTTP版本号
+		std::vector<std::string> chunk;
+		split(lines[0].c_str()," ",chunk);
+		if (chunk.size() < 3)
+		{
+			closeCallback_();
+			return;
+		}
+		
+		//剩下的大概是这些数据了     /simple/network?asd=123&qwe=456
+		buffer_read_http = chunk[1];
+		//这时再去去掉接收缓冲区里的数据，第四个参数设为0
+		len = ::recv(sockfd, temp, shanchu_len, 0);
+
+		messageCallback_();
+
+	}
+	else if (len == 0) //对面关掉连接了
+	{
+		closeCallback_();
+	}
+	else
+	{
+		logger("error", "read_er_http", sockfd, errno);
+	}
+
+}
+
+
+void socket_er::message_er_http()
+{
+	logger("socket_er", "message_er_http", sockfd, buffer_read_http);
+	//开始剥离前面的问号?
+	//例如/simple/network?itemid=123&act=buy&count=10
+	//    /simple/network?qwe=456&act=mission_task
+	std::vector<std::string>parms;
+	split(buffer_read_http.c_str(), "?", parms);
+	
+	//那么parms[0]=  /simple/network
+	//parms[1]=  itemid=123&act=buy&count=10
+
+	if (parms[0] == "/simple/network")
+	{
+		//那么parms[1]准备二次分割,以&分割
+		//itemid=123&act=buy&count=10或qwe=456&act=mission_task
+		std::vector<std::string>parms_two;
+		split(parms[1].c_str(), "&", parms_two);
+
+		//准备第三次切割，以=分割
+		//parms_two[0]=   itemid=123
+		//parms_two[1]=   act=buy
+		//parms_two[2]=   count=10
+		//或是
+		//parms_two[0]=   qwe=123
+		//parms_two[1]=   act=mission_task
+		std::string act = "";
+		std::map<std::string, std::string> parms_three;
+		for (auto iter = parms_two.begin(); iter != parms_two.end();iter++)
+		{
+			std::vector<std::string>parms_four;
+			split(iter->c_str(), "=", parms_four);
+
+			if (parms_four[0]=="act")
+			{
+				//触发的哪个函数
+				act = parms_four[1];
+			}
+			else
+			{
+				//一些基础参数
+				parms_three[parms_four[0]] = parms_four[1];
+			}
+
+		}
+
+		//分割后开始做逻辑处理
+		if (act=="buy")
+		{
+			loger("buy_http", "购买成功", "道具ID为", parms_three["itemid"], "数量为", parms_three["count"]);
+
+		}
+
+		if (act == "mission_task")
+		{
+			loger("mission_http", "任务完成","任务名为", parms_three["name"]);
+		}
+
+		//统一返回个200
+		//手动组装http协议应答包
+		/*
+		HTTP/1.1 200 OK\r\n
+		Content-Type: text/html\r\n
+		Content-Length: 4864\r\n
+		\r\n\
+		{"code": 0, "msg": ok}
+		*/
+		std::string ret_msg="{ret: 0, msg: ok}";
+		std::ostringstream os;
+		os << "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: "
+			<< ret_msg.size() << "\r\n\r\n"
+			<< ret_msg;
+		
+		std::string succ(os.str());
+		int len = ::write(sockfd, succ.c_str(), succ.size());
+		loger("socket_er", "写入结果", "len", len);
+	}
+	else
+	{
+		logger("error", "message_er_http数据异常", sockfd, buffer_read_http);
+		closeCallback_();
+	}
+
 }
