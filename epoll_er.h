@@ -19,7 +19,7 @@ namespace simple
 		~epoll_er();
 		void start_epoll();
 		void quit_ep();
-		//void update_socket_er_Channel(socket_er* channel);
+
 		void removeChannel(socket_er* channel);
 		typedef std::map<int, std::shared_ptr<socket_er>>         ChannelMap;
 		ChannelMap                              m_channels;
