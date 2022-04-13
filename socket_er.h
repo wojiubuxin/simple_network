@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <deque>
 #include <vector>
+#include <map>
 #include <chrono>
 #include <time.h>
 #include <sstream>
@@ -82,8 +83,16 @@ namespace simple
 		void write_er();
 		void close_er();
 		void message_er();
+
+		//http格式
+		void read_er_http();
+		void message_er_http();
+
+		void split(const char* temp, const char* delim, std::vector<std::string>& v);
+		bool ishavefenge(const char* temp, const char* delim);
 	private:
 		epoll_er* m_loop;
+		uint16_t port;
 		void bind_sock(const struct sockaddr_in* addr);
 		
 		int accept_sock(struct sockaddr_in* addr);
@@ -129,7 +138,7 @@ namespace simple
 		size_t readerIndex_;
 		size_t writerIndex_;
 
-		
+		std::string buffer_read_http;
 		
 		//业务专用
 		void mission_task();
