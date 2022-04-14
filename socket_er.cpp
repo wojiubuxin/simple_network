@@ -41,7 +41,8 @@ int socket_er::createNonblocksock()
 		setReusePort();
 		events_ |= kReadEvent;
 
-		std::string ip = "127.0.0.1";
+		//监听本机器下的所有网卡
+		std::string ip = "0.0.0.0";
 
 		//结构体用666监听
 		//port = 666;
@@ -681,8 +682,8 @@ void socket_er::read_er_http()
 		//检查是否以\r\n\r\n结束，如果不是说明包头不完整，退出
 		if (ishavefenge(temp,"\r\n\r\n") == false)
 		{
-			//继续等待下次读
-			logger("error", "read_er_http没有以\r\n\r\n结束", sockfd);
+			logger("error", "read_er_http没有以rnrn结束", sockfd);
+			closeCallback_();
 			return;
 		}
 
@@ -801,7 +802,7 @@ void socket_er::message_er_http()
 		\r\n\
 		{"code": 0, "msg": ok}
 		*/
-		std::string ret_msg="{ret: 0, msg: ok}";
+		std::string ret_msg = "{\"ret\": 0, \"msg\": ok}" + buffer_read_http;
 		std::ostringstream os;
 		os << "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: "
 			<< ret_msg.size() << "\r\n\r\n"
@@ -809,7 +810,7 @@ void socket_er::message_er_http()
 		
 		std::string succ(os.str());
 		int len = ::write(sockfd, succ.c_str(), succ.size());
-		loger("socket_er", "写入结果", "len", len);
+		loger("socket_er", "写入结果", "len", len, succ);
 	}
 	else
 	{
