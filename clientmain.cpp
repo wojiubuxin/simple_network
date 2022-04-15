@@ -44,8 +44,8 @@ void fa2(socket_er* tem)
 void fa3(socket_er* tem)
 {
 	msg_mission data;
-	memcpy(data.data, "卧1槽啊", sizeof(data.data));
-	//for (size_t i = 0; i < 4; i++)
+	memcpy(data.data, "已转职", sizeof(data.data));
+	for (size_t i = 0; i < 10000; i++)
 	{
 		tem->send(MISSION_ASK, &data, sizeof(data));
 	}
@@ -60,7 +60,7 @@ void fa1()
 		//SetTimeCB(fla, std::bind(&fa2, iter->second.get()));
 		//fla = rand() % 5 + 1;
 		//SetTimeCB(fla, std::bind(&fa3, iter->second.get()));
-		fa2(iter->second.get());
+		//fa2(iter->second.get());
 		fa3(iter->second.get());
 	}
 
@@ -88,7 +88,8 @@ int main()
 	srand((int)time(0));  // 产生随机种子
 	for (int i = 0; i < 1; i++)
 	{
-		threadpool_push(bind(&te));
+		te();
+		//threadpool_push(bind(&te));
 	}
 	cout << m_channels.size() << endl;
 	//this_thread::sleep_for(std::chrono::seconds(10));

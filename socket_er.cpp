@@ -45,10 +45,10 @@ int socket_er::createNonblocksock()
 		std::string ip = "0.0.0.0";
 
 		//结构体用666监听
-		//port = 666;
+		port = 666;
 
 		//http用6666监听
-		port = 6666;
+		//port = 6666;
 
 		memset(&addr_, 0, sizeof addr_);
 		addr_.sin_family = AF_INET;
@@ -314,7 +314,7 @@ void socket_er::mission_task()
 	//拿出后就去掉
 	buffer_read.erase(buffer_read.begin(), buffer_read.begin() + sizeof(data));
 
-	logger("mission", "你完成了任务", data.data,"我日");
+	logger("mission", "你完成了任务", data.data,"干的漂亮");
 
 	msg_mission_rsp data_rsp;
 	data_rsp.code = 0;
@@ -668,7 +668,7 @@ void socket_er::read_er_http()
 		if (len <= 4)
 		{
 			//继续等待下次读
-			logger("error", "read_er_http不够一个包头大小", sockfd, len);
+			logger("error", "read_er_http不够一个包头大小", sockfd, len, temp);
 			return;
 		}
 
@@ -682,7 +682,7 @@ void socket_er::read_er_http()
 		//检查是否以\r\n\r\n结束，如果不是说明包头不完整，退出
 		if (ishavefenge(temp,"\r\n\r\n") == false)
 		{
-			logger("error", "read_er_http没有以rnrn结束", sockfd);
+			logger("error", "read_er_http没有以rnrn结束", sockfd, temp);
 			closeCallback_();
 			return;
 		}
@@ -700,6 +700,7 @@ void socket_er::read_er_http()
 		split(inbuf.c_str(),"\r\n" , lines);
 		if (lines.size() < 1 || lines[0].empty())
 		{
+			logger("error", "read_er_http分割不对", sockfd, temp);
 			closeCallback_();
 			return;
 		}
@@ -711,6 +712,7 @@ void socket_er::read_er_http()
 		split(lines[0].c_str()," ",chunk);
 		if (chunk.size() < 3)
 		{
+			logger("error", "read_er_http没有三个字符串", sockfd, temp);
 			closeCallback_();
 			return;
 		}
@@ -725,6 +727,7 @@ void socket_er::read_er_http()
 	}
 	else if (len == 0) //对面关掉连接了
 	{
+		logger("error", "read_er_http-1", sockfd, errno);
 		closeCallback_();
 	}
 	else
@@ -815,7 +818,9 @@ void socket_er::message_er_http()
 	else
 	{
 		logger("error", "message_er_http数据异常", sockfd, buffer_read_http);
-		closeCallback_();
 	}
+
+	//短链接处理处理完直接关掉
+	closeCallback_();
 
 }
