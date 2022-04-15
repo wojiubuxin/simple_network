@@ -1,3 +1,8 @@
+#可以建一个文件收纳一些编译后的一堆杂物
+#mkdir build_command
+#cmake ./
+#make
+
 set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11 -pthread")
 
 set(LIB_LIST 
@@ -27,5 +32,6 @@ target_link_libraries(fucktest_server simple)
 add_executable(fucktest_client ${SRC_LIST_CLIENT})
 target_link_libraries(fucktest_client simple)
 
+#不用cmake的话，可以手动敲这些
 #g++ -g -Wall -std=c++11 -pthread  log.cpp cb_time.cpp threadpool.cpp socket_er.cpp epoll_er.cpp  main.cpp -o fucktest
 
