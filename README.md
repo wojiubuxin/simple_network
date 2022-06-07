@@ -20,6 +20,7 @@ int main()<br />
   &emsp;//前面test是表示文件名的意思，后面都可以填写要记录的内容，支持变长参数 <br />
   &emsp;//logger,logger这是两个相等的宏，用哪个都可以，看个人习惯 <br />
   &emsp;//会在这个目录下生成文件,    /usr/local/zhu/logs/test_2022-05-31.log <br />
+  &emsp;//这是linux下的生成路径,windows下也可以，需要修改下路径 <br />
   &emsp;//cat /usr/local/zhu/logs/test_2022-05-31.log 之后会显示以下内容 <br />
   &emsp;//2022-05-31 [14:46:01:765]|123|喝水|ewq <br />
   &emsp;//2022-05-31 [14:46:01:765]|123|吃饭 <br />
