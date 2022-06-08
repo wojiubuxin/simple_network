@@ -13,6 +13,7 @@
 1.直接头文件包含log.h拿来用就可以                <br />
 2.例如                                         <br />
 #include "log.h"                               <br />
+using namespace simple;                        <br />
 int main()<br />
 {                                              <br />
   &emsp;logger("test","123","喝水","ewq");           <br />
@@ -41,9 +42,59 @@ int main()<br />
 2.当有数据写入缓冲区时，唤起日志线程进行加锁交换缓冲区<br />
 3.日志线程交换完后，释放锁，再不断写入文件内，而主线程就一直把数据写在缓冲区里，从而两者不会影响堵塞到<br />
 4.日志线程写完自己的文件后，再去尝试获取下锁，看下当前主线程的缓冲区里是否有数据，如果有就继续交换，如果没有就挂起三秒，不断反复<br />
-跟主线程分离开来，就不会造成因为打日志时阻塞当前业务流程<br />
-5.用到了智能指针，让它来帮我们释放，内存泄漏交给系统处理<br />
- 
+5.跟主线程分离开来，就不会造成因为打日志时阻塞当前业务流程<br />
+6.用到了智能指针，让它来帮我们释放，内存泄漏交给它处理即可<br />
+
+### 定时器
+1.直接头文件包含cb_time.h拿来用就可以                <br />
+2.例如                                         <br />
+#include "cb_time.h"                            <br />
+#include "log.h"                               <br />
+using namespace simple;                        <br />
+void yacelog(int i)<br />
+{<br />
+	&emsp;loger("yace", "testxianchengchi",i);<br />
+}<br />
+void test1()<br />
+{<br />
+	&emsp;loger("yace", "test1");<br />
+}<br />
+class timer_ts<br />
+{<br />
+public:<br />
+	&emsp;timer_ts() {};<br />
+	&emsp;~timer_ts() {};<br />
+	&emsp;void prints(int a)<br />
+	&emsp;{
+		&emsp;loger("yace", "prints",a);<br />
+	&emsp;};<br />
+};<br />
+
+int main()<br />
+{   <br />
+  &emsp;timer_ts ads;<br />
+	 &emsp;auto pr1 = std::bind(&yacelog, 123);<br />
+	 &emsp;SetTimeCB(2, pr1);//前面参数是代表定时2秒，后面是压入的回调<br />
+	 &emsp;SetTimeCB(0.5, test1);//这里是指0.5秒<br />
+	 &emsp;auto pr2 = std::bind(&timer_ts::prints, &ads, 666);<br />
+	 &emsp;SetTimeCB(1, pr2);//大概演示了三种设置定时器的方式<br />
+	 &emsp;//KillTimeCB(test1);//这里是清除掉定时器,之前设置的时候传啥值,删的时候再传入就行<br />
+	 &emsp;//KillTimeCB(pr1);<br />
+  &emsp;return 0;<br />
+  
+  &emsp;//会在这个文件下/usr/local/zhu/logs/yace_2022-05-31.log生成以下内容<br />
+  &emsp;//2022-05-31 [14:50:55:507]|test1<br />
+  &emsp;//2022-05-31 [14:50:56:005]|prints|666<br />
+  &emsp;//2022-05-31 [14:50:57:006]|testxianchengchi|123<br />
+  &emsp;//间隔时间是0.5秒，1秒，大概会有1毫秒的延迟打印,整体效果对人感知来说，差距不大<br />
+}<br />
+3.整体思路<br />
+1.SetTimeCB(设置定时器),KillTimeCB(清除定时器),采用了单例模式的方法<br />
+2.支持毫秒级别的精度,也是起一个定时器线程，通过线程自带的睡眠机制来控制<br />
+3.每压入一个，即会唤醒判断，用multimap来进行存储，即可最早需要触发的放在前列，也可放入重复的毫秒级时间戳<br />
+4.全程也是交由智能指针和锁，让它帮我们管理和互斥定时队列<br />
+5.也支持windows和linux平台
+
 ## 入道者阅后即可简单初步了解整个知识体系，心中也能找到属于自己的方向，自己的学习思路
 ### 在下学识尚浅,倘若大能者阅得此章,愿洗耳恭听,指出在下的不足之处,烦请不吝赐教
 ![image](https://github.com/wojiubuxin/image/blob/master/zhongdu.jpeg)
