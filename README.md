@@ -7,7 +7,8 @@
 
  <br />
  <br />   
-     
+
+### 整体代码是c++11编写的，在linux环境下运行，当然一些独立模块在windows下也能执行，例如日志，定时器，线程池
 ### 简单概括下当分开模块时的使用方法
 ### 日志库
 1.直接头文件包含log.h拿来用就可以                <br />
@@ -93,7 +94,59 @@ int main()<br />
 2.支持毫秒级别的精度,也是起一个定时器线程，通过线程自带的睡眠机制来控制<br />
 3.每压入一个，即会唤醒判断，用multimap来进行存储，即可最早需要触发的放在前列，也可放入重复的毫秒级时间戳<br />
 4.全程也是交由智能指针和锁，让它帮我们管理和互斥定时队列<br />
-5.也支持windows和linux平台
+5.也支持windows和linux平台<br />
+
+### 线程池
+1.直接头文件包含threadpool.h拿来用就可以                <br />
+2.例如                                         <br />
+#include "log.h"                               <br />
+#include "threadpool.h"                         <br />
+using namespace simple;                        <br />
+void yacelog(int i)<br />
+{<br />
+	&emsp;loger("yace", "testxianchengchi",i);<br />
+}<br />
+void test1()<br />
+{<br />
+	&emsp;loger("yace", "test1");<br />
+}<br />
+class timer_ts<br />
+{<br />
+public:<br />
+	&emsp;timer_ts() {};<br />
+	&emsp;~timer_ts() {};<br />
+	&emsp;void prints(int a)<br />
+	&emsp;{
+		&emsp;loger("yace", "prints",a);<br />
+	&emsp;};<br />
+};<br />
+
+int main()<br />
+{                                              <br />
+	&emsp;timer_ts ads; <br />
+	&emsp;threadpool_push(test1); <br />
+	&emsp;threadpool_push(std::bind(yacelog,123)); <br />
+	&emsp;threadpool_push(std::bind(&timer_ts::prints,&ads, 666)); <br />
+	&emsp;return 0;<br />
+	&emsp;//会在这个文件下/usr/local/zhu/logs/yace_2022-05-31.log生成以下内容<br />
+	&emsp;//2022-05-31 [16:17:39:359]|test1<br />
+    &emsp;//2022-05-31 [16:17:39:359]|testxianchengchi|123<br />
+    &emsp;//2022-05-31 [16:17:39:359]|prints|666<br />
+
+	
+}<br />
+3.整体思路<br />
+1.起了四个工作线程挂起等待，当主业务压入时，先获取锁，压入后再释放锁，并只唤醒一个线程即可，防止惊群<br />
+2.当苏醒的工作线程获取到锁后，再从队列里拿出一个任务，并释放锁，避免长时间占用，然后再执行<br />
+3.执行完后，如果没任务了，再挂起即可，等待下次的唤醒，如此往复<br />
+
+
+
+### 接下来是整体运用，内含epoll，socket
+1.首先在建个目录,例如 mkdir /usr/local/zhu
+2.再把相关文件放进去，接着参考CMakeLists.txt即可
+3.然后在那个目录下执行  ./fucktest_server 和 ./fucktest_client即可
+4.
 
 ## 入道者阅后即可简单初步了解整个知识体系，心中也能找到属于自己的方向，自己的学习思路
 ### 在下学识尚浅,倘若大能者阅得此章,愿洗耳恭听,指出在下的不足之处,烦请不吝赐教
