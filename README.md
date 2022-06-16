@@ -94,7 +94,6 @@ int main()<br />
 2.支持毫秒级别的精度,也是起一个定时器线程，通过线程自带的睡眠机制来控制<br />
 3.每压入一个，即会唤醒判断，用multimap来进行存储，即可最早需要触发的放在前列，也可放入重复的毫秒级时间戳<br />
 4.全程也是交由智能指针和锁，让它帮我们管理和互斥定时队列<br />
-5.也支持windows和linux平台<br />
 
 ### 线程池
 1.直接头文件包含threadpool.h拿来用就可以                <br />
@@ -142,12 +141,18 @@ int main()<br />
 
 
 
-### 接下来是整体运用，内含epoll，socket
-1.首先在建个目录,例如 mkdir /usr/local/zhu
-2.再把相关文件放进去，接着参考CMakeLists.txt即可
-3.然后在那个目录下执行  ./fucktest_server 和 ./fucktest_client即可
-4.
+### 接下来是整体运用，内含epoll，socket，支持C10k
+1.首先在建个目录,例如 mkdir /usr/local/zhu<br />
+2.再把相关文件放进去，接着参考CMakeLists.txt即可<br />
+3.然后需要锻炼我们的动手能力，先度娘一下，查询下系统级，用户级，进程级的打开最大文件句柄数的相关命令<br />
+4.然后开两个个xshell窗口在那个目录下执行  ./fucktest_server 和 ./fucktest_client即可<br />
+5.然后会在/usr/local/zhu/logs下生成一堆相关日志来参考<br />
+6.通过日志你可以完整的看到数据是怎么交流的<br />
+7.因为涉及到TCP流式的传输，你会遇到网上所说的粘包问题，也就是我们要在上层自己定义好边界，我这边示范了用结构体做为边界，在msg.h下，然后也支持http的get方法边界解析<br />
+8.思想是一个tcp链接就拥有一个socket_er对象，通过std::map来管理所有的对象<br />
+9.main.cpp为服务器开启入口，clientmain.cpp为客户端开启，目前暂定了10K链接，读者可根据ip_local_port_range自行更改<br />
 
-## 入道者阅后即可简单初步了解整个知识体系，心中也能找到属于自己的方向，自己的学习思路
-### 在下学识尚浅,倘若大能者阅得此章,愿洗耳恭听,指出在下的不足之处,烦请不吝赐教
+
+#### 读者阅后即可简单初步了解整个知识体系，心中也能找到属于自己的方向，自己的学习思路，有啥疑问交流可以加我微信15767352354
+
 ![image](https://github.com/wojiubuxin/image/blob/master/zhongdu.jpeg)
