@@ -33,5 +33,5 @@ add_executable(fucktest_client ${SRC_LIST_CLIENT})
 target_link_libraries(fucktest_client simple)
 
 #不用cmake的话，可以手动敲这些
-#g++ -g -Wall -std=c++11 -pthread  log.cpp cb_time.cpp threadpool.cpp socket_er.cpp epoll_er.cpp  main.cpp -o fucktest
-
+#g++ -g -Wall -std=c++11 -pthread  log.cpp cb_time.cpp threadpool.cpp socket_er.cpp epoll_er.cpp  main.cpp -o fucktest_server
+#g++ -g -Wall -std=c++11 -pthread  log.cpp cb_time.cpp threadpool.cpp socket_er.cpp epoll_er.cpp  clientmain.cpp -o fucktest_client
